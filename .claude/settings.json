@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__magic__21st_magic_component_inspiration",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d.get\\('version','?'\\)\\)\")",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)",
+      "Bash(npx --yes playwright@latest screenshot --browser chromium --full-page http://localhost:3000/ /tmp/dashboard.png)",
+      "Bash(npx playwright *)",
+      "Bash(node -e ' *)",
+      "Read(//c/Users/samir/AppData/Local/Temp/**)",
+      "PowerShell(winget install --id GitHub.cli --silent 2>&1)",
+      "Bash(gh auth *)",
+      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\GitHub CLI\"; gh auth status 2>&1 | Select-Object -First 5)",
+      "Bash(surf --help)",
+      "PowerShell(Get-Command surf -ErrorAction SilentlyContinue)",
+      "Bash(grep -v \"^$\")",
+      "Bash(surf exchange-price *)",
+      "Bash(surf token-holders *)",
+      "Bash(surf kalshi-markets *)",
+      "Bash(surf exchange-klines *)"
+    ]
+  }
+}

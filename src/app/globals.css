@@ -5,9 +5,7 @@
   --font-mono: var(--font-geist-mono);
 }
 
-:root {
-  color-scheme: dark;
-}
+:root { color-scheme: dark; }
 
 html, body {
   background-color: #020617;
@@ -15,32 +13,55 @@ html, body {
   min-height: 100%;
 }
 
+/* ── Scrollbar ─────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: #0f172a; }
 ::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
-.glass {
-  background: rgba(15, 23, 42, 0.75);
+/* ── Core card primitives ──────────────────────────────── */
+.terminal-card {
+  background: rgba(15, 23, 42, 0.82);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(71, 85, 105, 0.25);
+  border-radius: 12px;
+  border: 1px solid rgba(71, 85, 105, 0.28);
 }
 
-.glass-hover:hover {
-  background: rgba(30, 41, 59, 0.8);
-  border-color: rgba(71, 85, 105, 0.45);
+.gradient-border {
+  box-shadow:
+    0 0 0 1px rgba(71, 85, 105, 0.18),
+    0 8px 32px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  position: relative;
 }
 
-.glow-cyan { box-shadow: 0 0 24px rgba(34, 211, 238, 0.12), 0 1px 3px rgba(0,0,0,0.4); }
-.glow-emerald { box-shadow: 0 0 24px rgba(52, 211, 153, 0.12), 0 1px 3px rgba(0,0,0,0.4); }
-.glow-violet { box-shadow: 0 0 24px rgba(167, 139, 250, 0.12), 0 1px 3px rgba(0,0,0,0.4); }
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  padding: 1px;
+  background: linear-gradient(135deg,
+    rgba(34, 211, 238, 0.12) 0%,
+    rgba(129, 140, 248, 0.08) 50%,
+    transparent 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
 
-.font-data {
+/* ── Typography ────────────────────────────────────────── */
+.data-mono {
   font-family: var(--font-geist-mono), 'Courier New', monospace;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
+
+/* alias kept for backwards compat */
+.font-data { font-family: var(--font-geist-mono), 'Courier New', monospace; font-variant-numeric: tabular-nums; }
 
 .gradient-text-cyan {
   background: linear-gradient(135deg, #22d3ee 0%, #818cf8 100%);
@@ -49,36 +70,25 @@ html, body {
   background-clip: text;
 }
 
-.ticker-pulse {
-  animation: tickerPulse 2s ease-in-out infinite;
+/* ── Legacy glass (header) ─────────────────────────────── */
+.glass {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(71, 85, 105, 0.25);
 }
 
-@keyframes tickerPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-
-.live-dot {
-  animation: livePulse 1.5s ease-in-out infinite;
-}
+/* ── Animations ────────────────────────────────────────── */
+.live-dot { animation: livePulse 1.5s ease-in-out infinite; }
 
 @keyframes livePulse {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.8); }
+  50%       { opacity: 0.4; transform: scale(0.8); }
 }
 
-.scan-line {
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 3px,
-    rgba(0, 0, 0, 0.04) 3px,
-    rgba(0, 0, 0, 0.04) 4px
-  );
-  pointer-events: none;
-}
+.ticker-pulse { animation: tickerPulse 2s ease-in-out infinite; }
 
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
+@keyframes tickerPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
 }
