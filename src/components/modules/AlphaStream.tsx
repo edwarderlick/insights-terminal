@@ -1,10 +1,9 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { RefreshCw, Flame, Hash } from 'lucide-react'
+import { RefreshCw, Flame, Hash, FlaskConical } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { sampleAlphaStream } from '@/lib/sampleData'
-import { fetchAlphaStreamAction } from '@/app/actions'
 
 export default function AlphaStream() {
   const { isDemoMode, addCredits } = useStore()
@@ -24,9 +23,14 @@ export default function AlphaStream() {
             .map(t => ({ ...t, mentions: Math.round(t.mentions * (0.9 + Math.random() * 0.2)) })),
         })
       } else {
-        const live = await fetchAlphaStreamAction() as typeof data
-        setData(live)
-        addCredits(1)
+        // No surf social API — use simulated refresh
+        await new Promise(r => setTimeout(r, 400))
+        setData({
+          ...sampleAlphaStream,
+          trending: sampleAlphaStream.trending
+            .slice()
+            .sort(() => Math.random() - 0.5),
+        })
       }
     } catch {
       // fall back silently
@@ -53,6 +57,9 @@ export default function AlphaStream() {
         <div className="flex items-center gap-2">
           <Flame className="w-4 h-4 text-pink-400" />
           <h2 className="text-sm font-semibold text-slate-200 tracking-wide">ALPHA STREAM</h2>
+          <span className="flex items-center gap-1 text-[10px] font-data text-amber-500 bg-amber-500/8 border border-amber-500/20 px-1.5 py-0.5 rounded-full">
+            <FlaskConical className="w-2.5 h-2.5" />SIM
+          </span>
         </div>
         <button
           onClick={refresh}

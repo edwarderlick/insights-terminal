@@ -38,9 +38,9 @@ export default function PredictionArena() {
           }))
         })
       } else {
-        const live = await fetchPredictionsAction() as typeof data
-        setData(live)
-        addCredits(1)
+        const live = await fetchPredictionsAction()
+        setData({ markets: live.markets as typeof data.markets })
+        addCredits(live.creditsUsed ?? 1)
       }
     } catch {
       // fall back silently

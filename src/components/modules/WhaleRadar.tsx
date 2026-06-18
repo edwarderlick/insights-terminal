@@ -25,9 +25,9 @@ export default function WhaleRadar() {
         await new Promise(r => setTimeout(r, 400))
         setData(sampleWhaleRadar[t] ?? sampleWhaleRadar['ETH'])
       } else {
-        const live = await fetchWhaleRadarAction(t) as typeof data
-        setData(live)
-        addCredits(1)
+        const live = await fetchWhaleRadarAction(t)
+        setData({ token: live.token, topHolders: live.topHolders as typeof data.topHolders })
+        addCredits(live.creditsUsed ?? 1)
       }
     } catch {
       setData(sampleWhaleRadar[t] ?? sampleWhaleRadar['ETH'])

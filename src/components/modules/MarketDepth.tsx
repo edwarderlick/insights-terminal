@@ -44,9 +44,9 @@ export default function MarketDepth() {
           }))
         })
       } else {
-        const live = await fetchMarketDepthAction() as typeof sampleMarketDepth
-        setData(live)
-        addCredits(1)
+        const live = await fetchMarketDepthAction()
+        setData({ coins: live.coins as typeof sampleMarketDepth.coins })
+        addCredits(live.creditsUsed ?? 1)
       }
     } catch {
       // fall back silently

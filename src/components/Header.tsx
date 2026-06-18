@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useStore } from '@/store/useStore'
 import { Activity, Command, Cpu, Zap } from 'lucide-react'
 
@@ -9,6 +10,14 @@ interface HeaderProps {
 
 export default function Header({ onOpenPalette }: HeaderProps) {
   const { isDemoMode, credits, toggleDemoMode } = useStore()
+  const [clock, setClock] = useState('')
+
+  useEffect(() => {
+    const tick = () => setClock(new Date().toLocaleTimeString('en-US', { hour12: false }))
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [])
 
   return (
     <header className="sticky top-0 z-40 glass border-b border-slate-700/30">
@@ -40,8 +49,8 @@ export default function Header({ onOpenPalette }: HeaderProps) {
             <span className="font-data">LATENCY 42MS</span>
           </span>
           <div className="h-3 w-px bg-slate-700" />
-          <span className="text-slate-600 font-data">
-            {new Date().toLocaleTimeString('en-US', { hour12: false })} UTC
+          <span className="text-slate-600 font-data" suppressHydrationWarning>
+            {clock} UTC
           </span>
         </div>
 

@@ -2,10 +2,9 @@
 
 import { useState, useCallback } from 'react'
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
-import { RefreshCw, Zap } from 'lucide-react'
+import { RefreshCw, Zap, FlaskConical } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { sampleChainPulse } from '@/lib/sampleData'
-import { fetchChainPulseAction } from '@/app/actions'
 
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
@@ -37,9 +36,17 @@ export default function ChainPulse() {
           }
         })
       } else {
-        const live = await fetchChainPulseAction() as typeof data
-        setData(live)
-        addCredits(1)
+        // No surf gas API — use simulated refresh
+        await new Promise(r => setTimeout(r, 400))
+        setData({
+          ...sampleChainPulse,
+          currentGas: {
+            ...sampleChainPulse.currentGas,
+            slow:     Math.round(sampleChainPulse.currentGas.slow     * (0.85 + Math.random() * 0.3)),
+            standard: Math.round(sampleChainPulse.currentGas.standard * (0.85 + Math.random() * 0.3)),
+            fast:     Math.round(sampleChainPulse.currentGas.fast     * (0.85 + Math.random() * 0.3)),
+          }
+        })
       }
     } catch {
       // fall back silently
@@ -59,6 +66,9 @@ export default function ChainPulse() {
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4 text-emerald-400" />
           <h2 className="text-sm font-semibold text-slate-200 tracking-wide">CHAIN PULSE</h2>
+          <span className="flex items-center gap-1 text-[10px] font-data text-amber-500 bg-amber-500/8 border border-amber-500/20 px-1.5 py-0.5 rounded-full">
+            <FlaskConical className="w-2.5 h-2.5" />SIM
+          </span>
         </div>
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center gap-2 text-[10px] font-data">

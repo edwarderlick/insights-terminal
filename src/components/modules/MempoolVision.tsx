@@ -44,9 +44,11 @@ export default function MempoolVision() {
           }))
         })
       } else {
-        const live = await fetchMempoolAction() as typeof data
-        setData(live)
-        addCredits(1)
+        const live = await fetchMempoolAction()
+        if (live.transactions.length > 0) {
+          setData({ transactions: live.transactions as typeof data.transactions })
+        }
+        addCredits(live.creditsUsed ?? 1)
       }
     } catch {
       // fall back silently
