@@ -27,42 +27,42 @@ function timeAgo(unix: number): string {
   return `${Math.floor(s / 3600)}h ago`
 }
 
-// ─── Market Depth — Binance public REST API (no key, works on Vercel) ─────────
+// ─── Market Depth — CoinGecko public API (no key, cloud-friendly) ─────────────
 
-const BINANCE_SYMBOLS = ['BTCUSDT','ETHUSDT','SOLUSDT','AAVEUSDT','LINKUSDT','UNIUSDT','ARBUSDT','OPUSDT']
-const SYMBOL_LABELS   = ['BTC','ETH','SOL','AAVE','LINK','UNI','ARB','OP']
+const CG_IDS = ['bitcoin','ethereum','solana','aave','chainlink','uniswap','arbitrum','optimism']
+const CG_SYMBOL: Record<string, string> = {
+  bitcoin:'BTC', ethereum:'ETH', solana:'SOL', aave:'AAVE',
+  chainlink:'LINK', uniswap:'UNI', arbitrum:'ARB', optimism:'OP',
+}
 
-type BinanceTicker = {
-  symbol: string
-  lastPrice: string
-  priceChangePercent: string
-  quoteVolume: string
+type CoinGeckoMarket = {
+  id: string
+  current_price: number
+  price_change_percentage_24h: number
+  total_volume: number
+  sparkline_in_7d: { price: number[] }
 }
 
 export async function getMarketDepth() {
   try {
-    const [tickerRes, ...klineResponses] = await Promise.all([
-      fetch(
-        `https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(BINANCE_SYMBOLS))}`,
-        { cache: 'no-store' }
-      ),
-      ...BINANCE_SYMBOLS.map(sym =>
-        fetch(
-          `https://api.binance.com/api/v3/klines?symbol=${sym}&interval=1h&limit=8`,
-          { cache: 'no-store' }
-        )
-      ),
-    ])
+    const r = await fetch(
+      `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${CG_IDS.join(',')}&order=market_cap_desc&per_page=8&page=1&sparkline=true&price_change_percentage=24h`,
+      { cache: 'no-store', headers: { Accept: 'application/json' } }
+    )
+    if (!r.ok) throw new Error(`CoinGecko HTTP ${r.status}`)
+    const coins = (await r.json()) as CoinGeckoMarket[]
 
-    const tickers = (await tickerRes.json()) as BinanceTicker[]
-    const klines  = await Promise.all(klineResponses.map(r => r.json())) as string[][][]
+    // Preserve display order matching CG_IDS
+    const ordered = CG_IDS
+      .map(id => coins.find(c => c.id === id))
+      .filter((c): c is CoinGeckoMarket => !!c)
 
-    const prices = tickers.map((t, i) => ({
-      symbol:    SYMBOL_LABELS[i],
-      price:     parseFloat(t.lastPrice),
-      change24h: parseFloat(t.priceChangePercent),
-      volume:    fmtVol(parseFloat(t.quoteVolume)),
-      sparkline: klines[i].map(k => parseFloat(k[4])), // index 4 = close price
+    const prices = ordered.map(c => ({
+      symbol:    CG_SYMBOL[c.id],
+      price:     c.current_price,
+      change24h: parseFloat((c.price_change_percentage_24h ?? 0).toFixed(2)),
+      volume:    fmtVol(c.total_volume),
+      sparkline: c.sparkline_in_7d.price.slice(-8), // last 8 hourly closes
     }))
 
     _sessionCredits += 1

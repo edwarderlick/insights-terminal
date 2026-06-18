@@ -162,14 +162,18 @@ function MarketDepthModule({ demoMode }: { demoMode: boolean }) {
   const [data, setData] = useState<MarketPrice[]>(demoMarketData.prices)
   const [loading, setLoading] = useState(false)
   const [lastUpdate, setLastUpdate] = useState('Just now')
+  const [error, setError] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
-    if (demoMode) { setData(demoMarketData.prices); setLastUpdate('Demo mode'); return }
+    if (demoMode) { setData(demoMarketData.prices); setLastUpdate('Demo'); setError(null); return }
     setLoading(true)
+    setError(null)
     const res = await getMarketDepth()
     if (res.success && res.data?.prices) {
       setData(res.data.prices as MarketPrice[])
       setLastUpdate(new Date().toLocaleTimeString())
+    } else {
+      setError((res.error as string) ?? 'API error')
     }
     setLoading(false)
   }, [demoMode])
@@ -185,6 +189,7 @@ function MarketDepthModule({ demoMode }: { demoMode: boolean }) {
             <BarChart3 className="h-4 w-4 text-cyan-400" />
             <h2 className="text-sm font-semibold text-slate-200">Market Depth</h2>
             <span className="text-[10px] text-slate-500 data-mono">8 PAIRS</span>
+            {error && <span className="text-[10px] text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">{error}</span>}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-slate-600 data-mono">{lastUpdate}</span>
