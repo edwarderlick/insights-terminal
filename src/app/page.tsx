@@ -231,12 +231,19 @@ function WhaleRadarModule({ demoMode }: { demoMode: boolean }) {
   const [data, setData] = useState<WhaleHolder[]>(demoWhaleData.holders)
   const [token, setToken] = useState('AAVE')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [lastUpdate, setLastUpdate] = useState('Just now')
 
   const refresh = useCallback(async () => {
-    if (demoMode) { setData(demoWhaleData.holders); return }
-    setLoading(true)
+    if (demoMode) { setData(demoWhaleData.holders); setLastUpdate('Demo'); setError(null); return }
+    setLoading(true); setError(null)
     const res = await getWhaleIntel(token)
-    if (res.success && res.data?.holders) setData(res.data.holders as WhaleHolder[])
+    if (res.success && res.data?.holders) {
+      setData(res.data.holders as WhaleHolder[])
+      setLastUpdate(new Date().toLocaleTimeString())
+    } else {
+      setError((res.error as string) ?? 'API error')
+    }
     setLoading(false)
   }, [demoMode, token])
 
@@ -250,11 +257,15 @@ function WhaleRadarModule({ demoMode }: { demoMode: boolean }) {
           <div className="flex items-center gap-2">
             <Eye className="h-4 w-4 text-violet-400" />
             <h2 className="text-sm font-semibold text-slate-200">Whale Radar</h2>
+            {error && <span className="text-[10px] text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20 truncate max-w-[120px]">{error}</span>}
           </div>
-          <button onClick={refresh} disabled={loading}
-            className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">
-            <RefreshCw className={`h-3.5 w-3.5 text-slate-400 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-slate-600 data-mono">{lastUpdate}</span>
+            <button onClick={refresh} disabled={loading}
+              className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">
+              <RefreshCw className={`h-3.5 w-3.5 text-slate-400 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
 
         <div className="flex gap-2 mb-4">
@@ -300,12 +311,19 @@ function WhaleRadarModule({ demoMode }: { demoMode: boolean }) {
 function PredictionArenaModule({ demoMode }: { demoMode: boolean }) {
   const [data, setData] = useState<PredictionMkt[]>(demoPredictionData.markets)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [lastUpdate, setLastUpdate] = useState('Just now')
 
   const refresh = useCallback(async () => {
-    if (demoMode) { setData(demoPredictionData.markets); return }
-    setLoading(true)
+    if (demoMode) { setData(demoPredictionData.markets); setLastUpdate('Demo'); setError(null); return }
+    setLoading(true); setError(null)
     const res = await getPredictionMarkets()
-    if (res.success && res.data?.markets) setData(res.data.markets as PredictionMkt[])
+    if (res.success && res.data?.markets) {
+      setData(res.data.markets as PredictionMkt[])
+      setLastUpdate(new Date().toLocaleTimeString())
+    } else {
+      setError((res.error as string) ?? 'API error')
+    }
     setLoading(false)
   }, [demoMode])
 
@@ -319,11 +337,15 @@ function PredictionArenaModule({ demoMode }: { demoMode: boolean }) {
           <div className="flex items-center gap-2">
             <Globe className="h-4 w-4 text-amber-400" />
             <h2 className="text-sm font-semibold text-slate-200">Prediction Arena</h2>
+            {error && <span className="text-[10px] text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20 truncate max-w-[120px]">{error}</span>}
           </div>
-          <button onClick={refresh} disabled={loading}
-            className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">
-            <RefreshCw className={`h-3.5 w-3.5 text-slate-400 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-slate-600 data-mono">{lastUpdate}</span>
+            <button onClick={refresh} disabled={loading}
+              className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">
+              <RefreshCw className={`h-3.5 w-3.5 text-slate-400 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
 
         <div className="space-y-3">
@@ -372,12 +394,16 @@ function PredictionArenaModule({ demoMode }: { demoMode: boolean }) {
 function AlphaStreamModule({ demoMode }: { demoMode: boolean }) {
   const [data, setData] = useState<SocialData>(demoSocialData)
   const [loading, setLoading] = useState(false)
+  const [lastUpdate, setLastUpdate] = useState('Just now')
 
   const refresh = useCallback(async () => {
-    if (demoMode) { setData(demoSocialData); return }
+    if (demoMode) { setData(demoSocialData); setLastUpdate('Demo'); return }
     setLoading(true)
     const res = await getSocialTrends()
-    if (res.success && res.data) setData(res.data as SocialData)
+    if (res.success && res.data) {
+      setData(res.data as SocialData)
+      setLastUpdate(new Date().toLocaleTimeString())
+    }
     setLoading(false)
   }, [demoMode])
 
@@ -395,11 +421,15 @@ function AlphaStreamModule({ demoMode }: { demoMode: boolean }) {
           <div className="flex items-center gap-2">
             <MessageCircle className="h-4 w-4 text-pink-400" />
             <h2 className="text-sm font-semibold text-slate-200">Alpha Stream</h2>
+            <span className="text-[10px] text-amber-500/80 bg-amber-500/8 border border-amber-500/20 px-1.5 py-0.5 rounded">SIM</span>
           </div>
-          <button onClick={refresh} disabled={loading}
-            className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">
-            <RefreshCw className={`h-3.5 w-3.5 text-slate-400 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-slate-600 data-mono">{lastUpdate}</span>
+            <button onClick={refresh} disabled={loading}
+              className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">
+              <RefreshCw className={`h-3.5 w-3.5 text-slate-400 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
 
         {/* Sentiment Score */}
@@ -460,12 +490,16 @@ function AlphaStreamModule({ demoMode }: { demoMode: boolean }) {
 function ChainPulseModule({ demoMode }: { demoMode: boolean }) {
   const [data, setData] = useState<ChainData>(demoChainData)
   const [loading, setLoading] = useState(false)
+  const [lastUpdate, setLastUpdate] = useState('Just now')
 
   const refresh = useCallback(async () => {
-    if (demoMode) { setData(demoChainData); return }
+    if (demoMode) { setData(demoChainData); setLastUpdate('Demo'); return }
     setLoading(true)
     const res = await getOnChainMetrics('ethereum')
-    if (res.success && res.data) setData(res.data as ChainData)
+    if (res.success && res.data) {
+      setData(res.data as ChainData)
+      setLastUpdate(new Date().toLocaleTimeString())
+    }
     setLoading(false)
   }, [demoMode])
 
@@ -483,10 +517,13 @@ function ChainPulseModule({ demoMode }: { demoMode: boolean }) {
             <h2 className="text-sm font-semibold text-slate-200">Chain Pulse</h2>
             <span className="text-[10px] text-slate-500 data-mono uppercase">{data.network}</span>
           </div>
-          <button onClick={refresh} disabled={loading}
-            className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">
-            <RefreshCw className={`h-3.5 w-3.5 text-slate-400 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-slate-600 data-mono">{lastUpdate}</span>
+            <button onClick={refresh} disabled={loading}
+              className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">
+              <RefreshCw className={`h-3.5 w-3.5 text-slate-400 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -541,14 +578,19 @@ function ChainPulseModule({ demoMode }: { demoMode: boolean }) {
 function MempoolVisionModule({ demoMode }: { demoMode: boolean }) {
   const [data, setData] = useState<MempoolAlert[]>(demoMempoolData.alerts)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [lastUpdate, setLastUpdate] = useState('Just now')
 
   const refresh = useCallback(async () => {
-    if (demoMode) { setData(demoMempoolData.alerts); return }
-    setLoading(true)
+    if (demoMode) { setData(demoMempoolData.alerts); setLastUpdate('Demo'); setError(null); return }
+    setLoading(true); setError(null)
     const res = await getMempoolAlerts('1000000')
     if (res.success && res.data?.alerts) {
       const alerts = res.data.alerts as MempoolAlert[]
       setData(alerts.length ? alerts : demoMempoolData.alerts)
+      setLastUpdate(new Date().toLocaleTimeString())
+    } else {
+      setError((res.error as string) ?? 'API error')
     }
     setLoading(false)
   }, [demoMode])
@@ -564,11 +606,15 @@ function MempoolVisionModule({ demoMode }: { demoMode: boolean }) {
             <Radio className="h-4 w-4 text-rose-400 animate-pulse" />
             <h2 className="text-sm font-semibold text-slate-200">Mempool Vision</h2>
             <span className="text-[10px] text-slate-500 data-mono">&gt;$1M ALERTS</span>
+            {error && <span className="text-[10px] text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20 truncate max-w-[160px]">{error}</span>}
           </div>
-          <button onClick={refresh} disabled={loading}
-            className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">
-            <RefreshCw className={`h-3.5 w-3.5 text-slate-400 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-slate-600 data-mono">{lastUpdate}</span>
+            <button onClick={refresh} disabled={loading}
+              className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">
+              <RefreshCw className={`h-3.5 w-3.5 text-slate-400 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
