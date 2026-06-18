@@ -95,14 +95,10 @@ const KNOWN_LABELS: Record<string, string> = {
 export async function getWhaleIntel(token: string) {
   const contract = TOKEN_CONTRACTS[token]
   if (!contract) return { success: false, error: `Unknown token: ${token}` }
-
-  // Surf is local-only; on Vercel use Etherscan token holder API
-  if (contract.chain !== 'ethereum') {
-    return { success: false, error: 'Non-EVM chain — surf required' }
-  }
+  if (contract.chain !== 'ethereum') return { success: false, error: 'Non-EVM chain' }
 
   try {
-    // Try surf first (works locally)
+    // Try surf first (local)
     const res = await surf(
       `token-holders --address ${contract.address} --chain ${contract.chain} --include labels --limit 10`
     )
@@ -117,21 +113,20 @@ export async function getWhaleIntel(token: string) {
     }))
     return { success: true, data: { holders } }
   } catch {
-    // Fallback: Etherscan token holder list (free, no key needed for this endpoint)
+    // Fallback: Ethplorer freekey — works without any paid plan
     try {
-      const url = `https://api.etherscan.io/api?module=token&action=tokenholderlist&contractaddress=${contract.address}&page=1&offset=10&apikey=YourApiKeyToken`
-      const r = await fetch(url, { cache: 'no-store' })
-      const j = await r.json() as { status: string; result: Array<{ TokenHolderAddress: string; TokenHolderQuantity: string }> }
-      if (j.status !== '1' || !Array.isArray(j.result)) throw new Error('Etherscan error')
-      const total = j.result.reduce((s, h) => s + parseFloat(h.TokenHolderQuantity), 0) || 1
-      const holders = j.result.map(h => {
-        const addr = h.TokenHolderAddress.toLowerCase()
-        return {
-          address: h.TokenHolderAddress.slice(0, 6) + '...' + h.TokenHolderAddress.slice(-4),
-          name: KNOWN_LABELS[addr] ?? 'Unknown Wallet',
-          percentage: parseFloat(((parseFloat(h.TokenHolderQuantity) / total) * 100).toFixed(2)),
-        }
-      })
+      const r = await fetch(
+        `https://api.ethplorer.io/getTopTokenHolders/${contract.address}?apiKey=freekey&limit=10`,
+        { cache: 'no-store' }
+      )
+      if (!r.ok) throw new Error(`Ethplorer HTTP ${r.status}`)
+      const j = await r.json() as { holders?: Array<{ address: string; balance: number; share: number }> }
+      if (!j.holders?.length) throw new Error('no holders returned')
+      const holders = j.holders.map(h => ({
+        address: h.address.slice(0, 6) + '...' + h.address.slice(-4),
+        name: KNOWN_LABELS[h.address.toLowerCase()] ?? 'Unknown Wallet',
+        percentage: parseFloat(h.share.toFixed(2)),
+      }))
       return { success: true, data: { holders } }
     } catch (e) {
       return { success: false, error: String(e) }
@@ -139,22 +134,27 @@ export async function getWhaleIntel(token: string) {
   }
 }
 
-// ─── Prediction Markets — Kalshi public API ───────────────────────────────────
+// ─── Prediction Markets — Polymarket public API (crypto markets) ─────────────
 
 function fmtExpiry(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })
 }
 
-type KalshiMarket = {
-  title: string
+const CRYPTO_KEYWORDS = [
+  'btc','bitcoin','eth','ethereum','crypto','solana','sol','aave','chainlink',
+  'uniswap','arbitrum','optimism','defi','nft','ether','coinbase','binance',
+  '$100k','$200k','halving','fed','rate','inflation','gdp','nasdaq','s&p','gold',
+]
+
+type PolymarketMarket = {
+  question: string
+  outcomePrices: string[]
+  volume: number
+  endDate: string
+  active: boolean
+  closed: boolean
   category?: string
-  yes_bid?: number
-  yes_ask?: number
-  volume?: number
-  volume_24h?: number
-  open_interest?: number
-  close_time?: string
-  status: string
+  tags?: Array<{ slug: string }>
 }
 
 export async function getPredictionMarkets() {
@@ -181,27 +181,36 @@ export async function getPredictionMarkets() {
     })
     return { success: true, data: { markets } }
   } catch {
-    // Fallback: Kalshi public REST API (no auth needed for market list)
+    // Fallback: Polymarket gamma API — crypto prediction markets, no auth needed
     try {
       const r = await fetch(
-        'https://api.elections.kalshi.com/trade-api/v2/markets?limit=20&status=open',
-        { cache: 'no-store', headers: { 'Accept': 'application/json' } }
+        'https://gamma-api.polymarket.com/markets?active=true&closed=false&tag_slug=crypto&limit=20',
+        { cache: 'no-store', headers: { Accept: 'application/json' } }
       )
-      const j = await r.json() as { markets: KalshiMarket[] }
-      const markets = (j.markets ?? []).slice(0, 7).map(m => {
-        const midpoint = m.yes_bid != null && m.yes_ask != null
-          ? Math.round((m.yes_bid + m.yes_ask) / 2)
-          : 50
-        const yes = Math.min(95, Math.max(5, midpoint))
+      if (!r.ok) throw new Error(`Polymarket HTTP ${r.status}`)
+      const raw = (await r.json()) as PolymarketMarket[]
+
+      // Filter to crypto/financial topics; remove markets with missing prices
+      const filtered = raw
+        .filter(m => {
+          const lower = m.question.toLowerCase()
+          return CRYPTO_KEYWORDS.some(kw => lower.includes(kw)) &&
+                 Array.isArray(m.outcomePrices) && m.outcomePrices.length >= 2
+        })
+        .slice(0, 7)
+
+      if (!filtered.length) throw new Error('no crypto markets returned')
+
+      const markets = filtered.map(m => {
+        const yes = Math.min(95, Math.max(5, Math.round(parseFloat(m.outcomePrices[0] ?? '0.5') * 100)))
         return {
-          question: m.title,
-          category: m.category ?? 'Market',
+          question: m.question,
+          category: m.category ?? m.tags?.[0]?.slug ?? 'Crypto',
           yes, no: 100 - yes,
-          volume: fmtVol(m.volume ?? m.volume_24h ?? 0),
-          expires: m.close_time ? fmtExpiry(m.close_time) : 'TBD',
+          volume: fmtVol(m.volume ?? 0),
+          expires: m.endDate ? fmtExpiry(m.endDate) : 'TBD',
         }
       })
-      if (!markets.length) throw new Error('empty')
       return { success: true, data: { markets } }
     } catch (e) {
       return { success: false, error: String(e) }
@@ -250,29 +259,59 @@ export async function getSocialTrends() {
   }
 }
 
-// ─── On-Chain Metrics (simulated — no surf gas API) ───────────────────────────
+// ─── On-Chain Metrics — real gas from Etherscan gas oracle (free, no key) ─────
 
 export async function getOnChainMetrics(_chain: string) {
   const base = [12,14,11,9,8,10,14,20,26,32,38,35,28,24,20,18,22,28,34,38,32,24,18,14]
-  return {
-    success: true,
-    data: {
-      network: 'ETHEREUM',
-      gas: {
-        current: Math.round(15 + Math.random() * 10),
-        average: Math.round(20 + Math.random() * 8),
-        high: Math.round(40 + Math.random() * 15),
-        history: base.map(v => Math.round(v * (0.85 + Math.random() * 0.3))),
+  try {
+    const r = await fetch(
+      'https://api.etherscan.io/api?module=gastracker&action=gasoracle',
+      { cache: 'no-store' }
+    )
+    const j = await r.json() as {
+      status: string
+      result: { SafeGasPrice: string; ProposeGasPrice: string; FastGasPrice: string; suggestBaseFee: string }
+    }
+    if (j.status !== '1') throw new Error('gas oracle error')
+    const current = parseInt(j.result.ProposeGasPrice)
+    const high    = parseInt(j.result.FastGasPrice)
+    const base2   = parseFloat(j.result.suggestBaseFee)
+    return {
+      success: true,
+      data: {
+        network: 'ETHEREUM',
+        gas: {
+          current,
+          average: Math.round(base2 + 2),
+          high,
+          history: base.map(v => Math.round(v * (current / 22))), // scale to current conditions
+        },
+        activeAddresses: {
+          current: Math.round(460000 + Math.random() * 50000),
+          change: parseFloat((Math.random() * 6 - 2).toFixed(1)),
+        },
+        tps: {
+          current: parseFloat((12 + Math.random() * 6).toFixed(1)),
+          peak: parseFloat((18 + Math.random() * 4).toFixed(1)),
+        },
       },
-      activeAddresses: {
-        current: Math.round(460000 + Math.random() * 50000),
-        change: parseFloat((Math.random() * 6 - 2).toFixed(1)),
+    }
+  } catch {
+    // Fallback: simulated
+    return {
+      success: true,
+      data: {
+        network: 'ETHEREUM',
+        gas: {
+          current: Math.round(15 + Math.random() * 10),
+          average: Math.round(20 + Math.random() * 8),
+          high: Math.round(40 + Math.random() * 15),
+          history: base.map(v => Math.round(v * (0.85 + Math.random() * 0.3))),
+        },
+        activeAddresses: { current: Math.round(460000 + Math.random() * 50000), change: parseFloat((Math.random() * 6 - 2).toFixed(1)) },
+        tps: { current: parseFloat((12 + Math.random() * 6).toFixed(1)), peak: parseFloat((18 + Math.random() * 4).toFixed(1)) },
       },
-      tps: {
-        current: parseFloat((12 + Math.random() * 6).toFixed(1)),
-        peak: parseFloat((18 + Math.random() * 4).toFixed(1)),
-      },
-    },
+    }
   }
 }
 
@@ -347,34 +386,51 @@ export async function getMempoolAlerts(minValue: string) {
     })
     return { success: true, data: { alerts: alerts.slice(0, 12) } }
   } catch {
-    // Fallback: Etherscan USDC large transfer events (free API, no key for basic)
+    // Fallback: Ethplorer freekey — real on-chain USDC + USDT transfers, no paid key needed
     try {
       const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
-      const r = await fetch(
-        `https://api.etherscan.io/api?module=account&action=tokentx&contractaddress=${USDC}&page=1&offset=30&sort=desc&apikey=YourApiKeyToken`,
-        { cache: 'no-store' }
-      )
-      const j = await r.json() as { status: string; result: Array<{
-        hash: string; value: string; tokenDecimal: string
-        tokenSymbol: string; from: string; to: string; timeStamp: string
-      }> }
-      if (j.status !== '1' || !Array.isArray(j.result)) throw new Error('Etherscan error')
-      const alerts = j.result
-        .map(tx => {
-          const decimals = parseInt(tx.tokenDecimal) || 6
-          const amount = parseFloat(tx.value) / Math.pow(10, decimals)
+      const USDT = '0xdAC17F958D2ee523a2206206994597C13D831ec7'
+
+      const [usdcRes, usdtRes] = await Promise.allSettled([
+        fetch(`https://api.ethplorer.io/getTokenHistory/${USDC}?apiKey=freekey&type=transfer&limit=50`, { cache: 'no-store' }),
+        fetch(`https://api.ethplorer.io/getTokenHistory/${USDT}?apiKey=freekey&type=transfer&limit=50`, { cache: 'no-store' }),
+      ])
+
+      type EthplorerOp = {
+        timestamp: number
+        transactionHash: string
+        from: string
+        to: string
+        value: string | number
+        tokenInfo: { decimals: string; symbol: string; name: string }
+      }
+
+      const ops: EthplorerOp[] = []
+      for (const res of [usdcRes, usdtRes]) {
+        if (res.status !== 'fulfilled' || !res.value.ok) continue
+        const j = await res.value.json() as { operations?: EthplorerOp[] }
+        if (j.operations) ops.push(...j.operations)
+      }
+
+      const alerts = ops
+        .map(op => {
+          const decimals = parseInt(op.tokenInfo.decimals) || 6
+          const amount = parseFloat(String(op.value)) / Math.pow(10, decimals)
           return {
-            txHash: tx.hash.slice(0, 6) + '...' + tx.hash.slice(-4),
-            amount: Math.round(amount), token: tx.tokenSymbol,
-            from: tx.from.slice(0, 6) + '...' + tx.from.slice(-4),
-            to:   tx.to.slice(0, 6)   + '...' + tx.to.slice(-4),
-            time: timeAgo(parseInt(tx.timeStamp)),
+            txHash: op.transactionHash.slice(0, 6) + '...' + op.transactionHash.slice(-4),
+            amount: Math.round(amount),
+            token: op.tokenInfo.symbol,
+            from: op.from.slice(0, 6) + '...' + op.from.slice(-4),
+            to:   op.to.slice(0, 6)   + '...' + op.to.slice(-4),
+            time: timeAgo(op.timestamp),
             type: 'transfer' as TxType,
           }
         })
         .filter(a => a.amount >= threshold)
+        .sort((a, b) => b.amount - a.amount)
         .slice(0, 12)
-      if (!alerts.length) throw new Error('no large txs found')
+
+      if (!alerts.length) throw new Error('no large transfers found')
       return { success: true, data: { alerts } }
     } catch (e) {
       return { success: false, error: String(e) }
